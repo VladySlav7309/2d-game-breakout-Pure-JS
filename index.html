@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <style>
+    	* { padding: 0; margin: 0; }
+    	canvas { background: #eee; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="480" height="320"></canvas>
+
+<script>
+
+  var canvas = document.getElementById("myCanvas");
+  var ctx =canvas.getContext("2d");
+//Ball
+  var ballRadius =10;
+  var x = canvas.width/2;
+  var y = canvas.height-30;
+  var dx=3;
+  var dy=-3;
+  var style ="#0095DD";
+//Paddle
+  var paddleHeight = 10;
+  var paddleWidth = 75;
+  var paddleX = (canvas.width-paddleWidth)/2;
+  var rightPressed = false;
+  var leftPressed = false;
+//Events
+  document.addEventListener("keydown", keyDownHandler,false);
+  document.addEventListener("keyup",keyUpHandler,false);
+  document.addEventListener("mousemove", mouseMoveHandler, false);
+//Brick vars
+  var brickRowCount = 3;
+  var brickColumnCount = 5;
+  var brickWidth = 75;
+  var brickHeight = 20;
+  var brickPadding = 10;
+  var brickOffsetTop = 30;
+  var brickOffsetLeft = 30;
+//UI
+  var score = 0;
+  var lives =3;
+//Ball direction
+  var state=[];
+  for(var i=0;i<5;i++) {
+      state[i]=i*paddleWidth/5;
+  }
+  //Brick init
+  var bricks =[];
+  for(c=0;c<brickColumnCount; c++) {
+      bricks[c] = [];
+      for(r=0;r<brickRowCount;r++) {
+          bricks[c][r]={x:0,y:0, status: 1};
+      }
+  }
+
+
+function keyDownHandler(e) {
+    if(e.keyCode == 39) {
+      rightPressed =true;
+    }
+    else if(e.keyCode == 37) {
+      leftPressed = true;
+    }
+}
+
+function keyUpHandler(e) {
+    if(e.keyCode == 39) {
+      rightPressed = false;
+    }
+    else if (e.keyCode == 37) {
+      leftPressed = false;
+    }
+}
+//Checks which part of the paddle was hitten by the ballRadius
+//According to this data ball slightly changes his dy part of speedUp
+// from (3 to ~5)
+function checkState() {
+  var j=5;
+    for(var i=1;i<5;i++) {
+        if((x-paddleX>=state[i-1]) &&(x-paddleX<=state[i])) {
+            dy=-3*( ( i * j ) / 5 );
+        }
+        j--;
+    }
+}
+//Handles mouse move
+function mouseMoveHandler(e) {
+    var relativeX =e.clientX - canvas.offsetLeft;
+    if(relativeX >0 && relativeX <canvas.width) {
+        paddleX =relativeX - paddleWidth/2;
+
+        //Trying to adjust boundaries for paddle
+        if(relativeX>canvas.width-paddleWidth/2) {
+          paddleX=canvas.width-paddleWidth;
+        }
+        if(paddleX<paddleWidth/25) {
+            paddleX=0;
+        }
+    }
+}
+//Brick destruction and score counter
+function collisionDetection() {
+    for(c =0; c<brickColumnCount;c++) {
+        for(r=0; r<brickRowCount;r++) {
+            var b= bricks[c][r];
+            if(b.status == 1) {
+                if( ((x >b.x) && x<b.x+brickWidth) && (y > b.y && y<b.y +brickHeight )) {
+                    dy=-dy;
+                    b.status =0;
+                    score++;
+                    if(score == brickRowCount*brickColumnCount) {
+                        alert("YOU WIN, CONGRATULATIONS!"+"\n"+"Your score is: "+score);
+                        document.location.reload();
+                    }
+                }
+            }
+        }
+    }
+}
+//Drawing ball function. Clear function is separated in the draw function
+function drawBall(style) {
+    ctx.beginPath();
+    ctx.arc(x, y, ballRadius, 0, Math.PI*2);
+    ctx.fillStyle = style;
+    ctx.fill();
+    ctx.closePath();
+}
+
+function drawPaddle()
+{
+  ctx.beginPath();
+  ctx.rect(paddleX,canvas.height-paddleHeight,paddleWidth,paddleHeight);
+  ctx.fillStyle="#0095DD";
+  ctx.fill();
+  ctx.closePath();
+}
+//Draws the score
+function drawScore() {
+    ctx.font ="16px Arial";
+    ctx.fillStyle = "*0095DD";
+    ctx.fillText("Score: "+score, 8, 20);
+}
+//Draws current amount of lives
+function drawLives() {
+    ctx.font="16px Arial";
+    ctx.fillStyle = "#0095DD";
+    ctx.fillText("Lives: " +lives, canvas.width-65,20);
+}
+//Brick construction
+function drawBricks() {
+    for(c=0;c<brickColumnCount;c++) {
+        for(r=0;r<brickRowCount;r++) {
+            if(bricks[c][r].status == 1) {
+                var brickX =(c*(brickWidth+brickPadding))+brickOffsetLeft;
+                var brickY =(r*(brickHeight+brickPadding))+brickOffsetTop;
+                bricks[c][r].x=brickX;
+                bricks[c][r].y=brickY;
+                ctx.beginPath();
+                ctx.rect(brickX,brickY,brickWidth,brickHeight);
+                ctx.fillStyle ="#0095DD";
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+    }
+}
+//Main function
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height)
+    drawBricks();
+    drawBall(style);
+    drawPaddle();
+    drawScore();
+    drawLives();
+    collisionDetection();
+
+    //Bounce of the walls
+    if(((x + dx) > canvas.width-ballRadius) || ((x + dx) < ballRadius)) {
+        dx = -dx;
+        style=getRandomColor();
+    }
+    if((y + dy) < ballRadius) {
+        dy = -dy;
+        style=getRandomColor();
+    }
+    //
+    else if ((y + dy) > canvas.height-ballRadius) {
+        if (x+ballRadius > paddleX && x+ballRadius < paddleX + paddleWidth) {
+            //Here we change the ball speed and direction
+            //after contact with paddle
+            checkState();
+        }
+        else {
+          lives--;
+          if(!lives){
+              alert("GAME OVER");
+              document.location.reload();
+          }
+          else {
+            //If we still have lives left then we reload the screen
+              x=canvas.width/2;
+              y=canvas.height-30;
+              dx=3;
+              dy=-3;
+              paddleX=(canvas.width-paddleWidth)/2;
+          }
+      }
+    }
+
+    //Paddle movement by keyboard
+    if(rightPressed && paddleX < canvas.width-paddleWidth) {
+        paddleX += 7;
+    }
+    else if (leftPressed && paddleX>0) {
+        paddleX -=7;
+    }
+
+    x += dx;
+    y += dy;
+    requestAnimationFrame(draw);
+}
+
+draw();
+//Unnecessary function
+/*
+function speedUp()
+{
+  if(dx>0) dx++;
+  else     dx--;
+  if(dy>0) dy++;
+  else     dy--;
+}*/
+//Makes the ball randomly coloured after each collision with a wall
+ function getRandomColor() {
+   var letters = '0123456789ABCDEF';
+   var color = '#';
+   for (var i = 0; i < 6; i++) {
+     color += letters[Math.floor(Math.random() * 16)];
+   }
+   return color;
+ }
+
+
+
+</script>
+
+</body>
+</html>
